@@ -1,5 +1,7 @@
-from .models import MenuItem, Category
+from .models import MenuItem, Category, Rating
+from django.contrib.auth.models import User
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -20,6 +22,27 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 'min_value': 2
             },
             'inventory': {
+                'min_value': 0
+            }
+        }
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(
+        queryset = User.objects.all(),
+        default = serializers.CurrentUserDefault()
+    )
+    
+    class Meta:
+        model = Rating
+        fields = ['user', 'menuitem_id', 'rating']
+        validators = UniqueTogetherValidator(
+            queryset = Rating.objects.all(),
+            fields = ['user', 'menuitem_id', 'rating']
+        )
+        extra_kwargs = {
+            'rating': {
+                'max_value': 5,
                 'min_value': 0
             }
         }
