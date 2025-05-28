@@ -34,3 +34,16 @@ class MenuItemListCreateView(generics.ListCreateAPIView):
 
         return permissions
     
+
+class MenuItemDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated()]
+
+        if self.request.method != 'GET':
+            permissions.append(IsManager())
+
+        return permissions
+    
