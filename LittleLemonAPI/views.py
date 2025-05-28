@@ -3,7 +3,9 @@ from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-from .serializers import UserSerializer, CurrentUserSerializer
+from .models import MenuItem
+from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer
+from .permissions import IsManager
 
 # Create your views here.
 class CreateUserView(generics.CreateAPIView):
@@ -19,3 +21,16 @@ class CurrentUserView(generics.RetrieveAPIView):
     def get_object(self):
         return self.request.user
 
+
+class MenuItemListCreateView(generics.ListCreateAPIView):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated()]
+
+        if self.request.method == 'POST':
+            permissions.append(IsManager())
+
+        return permissions
+    
