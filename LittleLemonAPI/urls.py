@@ -5,5 +5,6 @@ from . import views
 
 urlpatterns = [
     path('auth', include('rest_framework.urls')),
-    path('users', views.UserCreate.as_view(), name='create_user'),
+    path('users', views.CreateUserView.as_view(), name='create_user'),
+    path('users/user/me/', views.CurrentUserView.as_view(), name='current_user')
 ]
