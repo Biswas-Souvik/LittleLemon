@@ -16,10 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.authtoken.views import ObtainAuthToken
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('Restaurant.urls')),
+    # path('', include('Restaurant.urls')),
+    path('token/login/', ObtainAuthToken.as_view(), name='auth_token'),
     path('drf/', include('LittleLemonDRF.urls')),
     path('api/', include('LittleLemonAPI.urls')),
 ]
