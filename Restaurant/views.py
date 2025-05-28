@@ -23,7 +23,7 @@ def book(request):
 
 
 def menu(request):
-    menu_items = Menu.objects.all()
+    menu_items = Menu.objects.all().order_by('name')
     main_data = {'menu': menu_items}
     return render(request, 'menu.html', main_data)
 
