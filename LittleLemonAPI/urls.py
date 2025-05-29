@@ -14,5 +14,9 @@ urlpatterns = [
 
     # User group management endpoints
     path('groups/manager/users', views.ManagerListCreateView.as_view(), name='manager-users'),
-    path('groups/manager/users/<str:username>', views.ManagerRemoveView.as_view(), name='remove-manager'),    
+    path('groups/manager/users/<int:pk>', views.ManagerRemoveView.as_view(), name='remove-manager'),    
+
+    path('groups/delivery-crew/users', views.DeliveryCrewListCreateView.as_view(), name='delivery-crew-users'),
+    path('groups/delivery-crew/users/<int:pk>', views.DeliveryCrewRemoveView.as_view(), name='remove-delivery-crew'),
+
 ]
