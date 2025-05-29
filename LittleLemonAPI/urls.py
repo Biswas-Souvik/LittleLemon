@@ -19,4 +19,6 @@ urlpatterns = [
     path('groups/delivery-crew/users', views.DeliveryCrewListCreateView.as_view(), name='delivery-crew-users'),
     path('groups/delivery-crew/users/<int:pk>', views.DeliveryCrewRemoveView.as_view(), name='remove-delivery-crew'),
 
+    # Cart management endpoints 
+    path('cart/menu-items', views.CartListCreateRemoveView.as_view(), name='cart-menu-items'),
 ]
