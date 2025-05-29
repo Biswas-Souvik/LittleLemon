@@ -5,12 +5,11 @@ from .models import Category, MenuItem
 
 
 class UserSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='username')
     password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['name', 'email', 'password']
+        fields = ['id', 'username', 'email', 'password']
     
     def create(self, validated_data):
         username = validated_data['username']
