@@ -1,14 +1,15 @@
 from django.shortcuts import render
-from django.contrib.auth.models import User
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User, Group
 
-from .models import MenuItem
-from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer
-from .permissions import IsManager
-from django.contrib.auth.models import Group
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
+
+from .models import MenuItem, Cart
+from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer, CartSerializer
+from .permissions import IsManager, IsCustomer
+
 
 # Create your views here.
 class CreateUserView(generics.CreateAPIView):
@@ -139,3 +140,36 @@ class DeliveryCrewRemoveView(generics.DestroyAPIView):
         return Response({"detail": f"User '{user.username}' removed from Delivery Crew group."}, status=status.HTTP_200_OK)
 
 
+class CartListCreateRemoveView(APIView):
+    permission_classes = [IsAuthenticated, IsCustomer]
+
+    def get(self, request):
+        cart_items = Cart.objects.filter(user=request.user)
+        serializer = CartSerializer(cart_items, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        menu_item_id = request.data.get('menu_item_id')
+        quantity = request.data.get('quantity')
+
+        try:
+            menu_item = MenuItem.objects.get(id=menu_item_id)
+        except MenuItem.DoesNotExist:
+            return Response({'error': 'MenuItem ID not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        unit_price = menu_item.price
+        price = unit_price * int(quantity)
+
+        cart_item, _ = Cart.objects.update_or_create(
+            user=request.user,
+            menu_item=menu_item,
+            defaults={'quantity': quantity, 'unit_price': unit_price, 'price': price}
+        )
+
+        serializer = CartSerializer(cart_item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        Cart.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_200_OK)
+    
