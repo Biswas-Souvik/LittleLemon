@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from .utils import update_order_total
 
 # Create your models here.
 class Category(models.Model):
@@ -49,3 +50,16 @@ class OrderItem(models.Model):
 
     class Meta:
         unique_together = ('order', 'menu_item')
+
+    def save(self, *args, **kwargs):
+        self.unit_price = self.menu_item.price
+        self.price = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
+        update_order_total(self.order)
+    
+    def delete(self, *args, **kwargs):
+        order = self.order 
+        super().delete(*args, **kwargs)
+        update_order_total(order)
+
+        

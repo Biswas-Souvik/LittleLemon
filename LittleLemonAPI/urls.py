@@ -21,4 +21,8 @@ urlpatterns = [
 
     # Cart management endpoints 
     path('cart/menu-items', views.CartListCreateRemoveView.as_view(), name='cart-menu-items'),
+
+    # Order management endpoints
+    path('orders', views.OrderListView.as_view(), name='orders'),
+
 ]

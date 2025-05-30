@@ -6,8 +6,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import MenuItem, Cart
-from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer, CartSerializer
+from .models import MenuItem, Cart, Order
+from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer,\
+    CartSerializer, OrderSerializer, OrderItemSerializer
 from .permissions import IsManager, IsCustomer
 
 
@@ -173,3 +174,19 @@ class CartListCreateRemoveView(APIView):
         Cart.objects.filter(user=request.user).delete()
         return Response(status=status.HTTP_200_OK)
     
+
+class OrderListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user        
+        
+        if user.groups.filter(name='Manager').exists():
+            orders = Order.objects.all()
+        elif user.groups.filter(name='Delivery Crew').exists():
+            orders = Order.objects.filter(delivery_crew=user)
+        else:
+            orders = Order.objects.filter(user=user)
+
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
