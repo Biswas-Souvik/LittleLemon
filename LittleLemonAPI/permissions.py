@@ -1,6 +1,9 @@
-# users/permissions.py
+"""Permissions for Little Lemon API."""
 
 from rest_framework.permissions import BasePermission
+
+from .utils import is_customer, is_manager
+
 
 class IsManager(BasePermission):
     """
@@ -8,7 +11,7 @@ class IsManager(BasePermission):
     """
 
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Manager').exists()
+        return is_manager(request.user)
 
 
 class IsCustomer(BasePermission):
@@ -17,9 +20,5 @@ class IsCustomer(BasePermission):
     """
 
     def has_permission(self, request, view):
-        user = request.user
-        if not user.is_authenticated:
-            return False
-        if user.groups.filter(name__in=['Manager', 'Delivery Crew']).exists():
-            return False
-        return True
+        return is_customer(request.user)
+    

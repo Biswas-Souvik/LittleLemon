@@ -6,11 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import MenuItem, Cart, Order
+from .models import MenuItem, Cart, Order, OrderItem
 from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer,\
     CartSerializer, OrderSerializer, OrderItemSerializer
 from .permissions import IsManager, IsCustomer
-
+from .utils import is_customer, is_manager, is_delivery_crew, update_order_total
 
 # Create your views here.
 class CreateUserView(generics.CreateAPIView):
@@ -147,7 +147,7 @@ class CartListCreateRemoveView(APIView):
     def get(self, request):
         cart_items = Cart.objects.filter(user=request.user)
         serializer = CartSerializer(cart_items, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         menu_item_id = request.data.get('menu_item_id')
@@ -175,18 +175,50 @@ class CartListCreateRemoveView(APIView):
         return Response(status=status.HTTP_200_OK)
     
 
-class OrderListView(APIView):
+class OrderListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user        
         
-        if user.groups.filter(name='Manager').exists():
+        if is_manager(user):
             orders = Order.objects.all()
-        elif user.groups.filter(name='Delivery Crew').exists():
+        elif is_delivery_crew(user):
             orders = Order.objects.filter(delivery_crew=user)
         else:
             orders = Order.objects.filter(user=user)
 
         serializer = OrderSerializer(orders, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        
+        user = request.user
+        if not is_customer(user):
+            return Response({"detail": "You do not have permission to create an order."}, status=status.HTTP_403_FORBIDDEN)
+        
+        cart_items = Cart.objects.filter(user=user)
+        if not cart_items.exists():
+            return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order = Order.objects.create(user=user)
+
+        order_items = []
+        for item in cart_items:
+            order_item = OrderItem(
+                order=order,
+                menu_item=item.menu_item,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                price=item.price
+            )
+            order_items.append(order_item)
+
+        OrderItem.objects.bulk_create(order_items)
+        update_order_total(order)
+
+        cart_items.delete()     # clear the cart after order creation
+
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    

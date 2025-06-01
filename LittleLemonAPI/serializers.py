@@ -46,11 +46,11 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
 
 class CartSerializer(serializers.ModelSerializer):
-    menu_item_title = serializers.ReadOnlyField(source='menu_item.title')
+    item = serializers.ReadOnlyField(source='menu_item.title')
 
     class Meta:
         model = Cart
-        fields = ['id', 'menu_item_id', 'menu_item_title', 'quantity', 'unit_price', 'price']
+        fields = ['item', 'quantity', 'unit_price', 'price']
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -63,6 +63,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    user = serializers.ReadOnlyField(source='user.username')
     class Meta:
         model = Order
         fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date', 'items']
