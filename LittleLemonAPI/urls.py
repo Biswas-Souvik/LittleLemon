@@ -24,5 +24,6 @@ urlpatterns = [
 
     # Order management endpoints
     path('orders', views.OrderListCreateView.as_view(), name='orders'),
+    path('/orders/<int:pk>', )
 
 ]

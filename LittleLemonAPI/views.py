@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from .models import MenuItem, Cart, Order, OrderItem
 from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer,\
-    CartSerializer, OrderSerializer, OrderItemSerializer
+    CartSerializer, OrderSerializer
 from .permissions import IsManager, IsCustomer
 from .utils import is_customer, is_manager, is_delivery_crew, update_order_total
 
@@ -141,15 +141,14 @@ class DeliveryCrewRemoveView(generics.DestroyAPIView):
         return Response({"detail": f"User '{user.username}' removed from Delivery Crew group."}, status=status.HTTP_200_OK)
 
 
-class CartListCreateRemoveView(APIView):
+class CartListCreateRemoveView(generics.ListCreateAPIView):
+    serializer_class = CartSerializer
     permission_classes = [IsAuthenticated, IsCustomer]
 
-    def get(self, request):
-        cart_items = Cart.objects.filter(user=request.user)
-        serializer = CartSerializer(cart_items, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        return Cart.objects.filter(user=self.request.user)
 
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         menu_item_id = request.data.get('menu_item_id')
         quantity = request.data.get('quantity')
 
@@ -167,7 +166,7 @@ class CartListCreateRemoveView(APIView):
             defaults={'quantity': quantity, 'unit_price': unit_price, 'price': price}
         )
 
-        serializer = CartSerializer(cart_item)
+        serializer = self.get_serializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request):
@@ -175,32 +174,27 @@ class CartListCreateRemoveView(APIView):
         return Response(status=status.HTTP_200_OK)
     
 
-class OrderListCreateView(APIView):
+class OrderListCreateView(generics.ListCreateAPIView):
+    serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user        
-        
+    def get_queryset(self):
+        user = self.request.user
         if is_manager(user):
-            orders = Order.objects.all()
-        elif is_delivery_crew(user):
-            orders = Order.objects.filter(delivery_crew=user)
-        else:
-            orders = Order.objects.filter(user=user)
+            return Order.objects.all()
+        if is_delivery_crew(user):
+            return Order.objects.filter(delivery_crew=user)
+        return Order.objects.filter(user=user)
 
-        serializer = OrderSerializer(orders, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        
+    def create(self, request, *args, **kwargs):
         user = request.user
         if not is_customer(user):
             return Response({"detail": "You do not have permission to create an order."}, status=status.HTTP_403_FORBIDDEN)
-        
+
         cart_items = Cart.objects.filter(user=user)
         if not cart_items.exists():
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         order = Order.objects.create(user=user)
 
         order_items = []
@@ -219,6 +213,6 @@ class OrderListCreateView(APIView):
 
         cart_items.delete()     # clear the cart after order creation
 
-        serializer = OrderSerializer(order)
+        serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
