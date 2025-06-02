@@ -24,6 +24,6 @@ urlpatterns = [
 
     # Order management endpoints
     path('orders', views.OrderListCreateView.as_view(), name='orders'),
-    path('/orders/<int:pk>', )
+    path('orders/<int:pk>', views.OrderDetailView.as_view(), name='order-detail')
 
 ]

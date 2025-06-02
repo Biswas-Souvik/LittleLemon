@@ -216,3 +216,27 @@ class OrderListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+
+class OrderDetailView(generics.RetrieveAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated, IsCustomer]
+    queryset = Order.objects.all()  # Required for RetrieveAPIView
+
+    def get(self, request, *args, **kwargs):
+        order = self.get_object()
+        if request.user != order.user:
+            return Response({"detail": "You do not have permission to see this order."}, status=status.HTTP_403_FORBIDDEN)
+        return super().get(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        order = self.get_object()
+        if request.user != order.user:
+            return Response({"detail": "You do not have permission to update this order."}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        order = self.get_object()
+        if request.user != order.user:
+            return Response({"detail": "You do not have permission to update this order."}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
+    
