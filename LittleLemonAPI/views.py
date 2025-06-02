@@ -217,26 +217,93 @@ class OrderListCreateView(generics.ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 
-class OrderDetailView(generics.RetrieveAPIView):
+class OrderDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated, IsCustomer]
-    queryset = Order.objects.all()  # Required for RetrieveAPIView
+    permission_classes = [IsAuthenticated]
+    queryset = Order.objects.all()
 
     def get(self, request, *args, **kwargs):
         order = self.get_object()
-        if request.user != order.user:
+        user = request.user
+        
+        # Customers can only see their own orders
+        if is_customer(user) and order.user != user:
             return Response({"detail": "You do not have permission to see this order."}, status=status.HTTP_403_FORBIDDEN)
+        # Managers and others can see all orders (adjust as needed)
         return super().get(request, *args, **kwargs)
-    
+
     def update(self, request, *args, **kwargs):
         order = self.get_object()
-        if request.user != order.user:
+        user = request.user
+        data = request.data
+
+        # Customer can only update their own orders (except delivery crew and status)
+        if is_customer(user):
+            if order.user != user:
+                return Response({"detail": "You do not have permission to update this order."}, status=status.HTTP_403_FORBIDDEN)
+            # Prevent customers from updating delivery_crew or status
+            if 'delivery_crew' in data or 'status' in data:
+                return Response({"detail": "Customers cannot update delivery crew or status."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Manager can update delivery_crew and status with restrictions
+        elif is_manager(user):
+            # Validate delivery_crew user if provided
+            delivery_crew_id = data.get('delivery_crew')
+            status_val = data.get('status')
+
+            if delivery_crew_id is not None:
+                try:
+                    delivery_crew_user = User.objects.get(id=delivery_crew_id)
+                    if not delivery_crew_user.groups.filter(name='Delivery Crew').exists():
+                        return Response({"detail": "Assigned user is not a delivery crew."}, status=status.HTTP_400_BAD_REQUEST)
+                except User.DoesNotExist:
+                    return Response({"detail": "Delivery crew user not found."}, status=status.HTTP_404_NOT_FOUND)
+                # Set the delivery crew
+                order.delivery_crew = delivery_crew_user
+
+            if status_val is not None:
+                if int(status_val) not in [0, 1]:
+                    return Response({"detail": "Status must be 0 (out for delivery) or 1 (delivered)."}, status=status.HTTP_400_BAD_REQUEST)
+                order.status = int(status_val)
+
+            order.save()
+
+            # After manager update, refresh data for serializer
+            serializer = self.get_serializer(order)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        elif is_delivery_crew(user):
+            if order.delivery_crew != user:
+                return Response({"detail": "You are not assigned to this order."}, status=status.HTTP_403_FORBIDDEN)
+
+            if 'status' in data:
+                status_val = int(data['status'])
+                if status_val not in [0, 1]:
+                    return Response({"detail": "Status must be 0 or 1."}, status=status.HTTP_400_BAD_REQUEST)
+                order.status = status_val
+                order.save()
+                serializer = self.get_serializer(order)
+                return Response(serializer.data)
+            else:
+                return Response({"detail": "Only 'status' field can be updated."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        # For other roles, deny update (or extend your rules)
+        if not is_customer(user):
             return Response({"detail": "You do not have permission to update this order."}, status=status.HTTP_403_FORBIDDEN)
+
+        # If customer and allowed to update (not delivery_crew or status), do normal update
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        order = self.get_object()
-        if request.user != order.user:
-            return Response({"detail": "You do not have permission to update this order."}, status=status.HTTP_403_FORBIDDEN)
-        return super().partial_update(request, *args, **kwargs)
+        return self.update(request, *args, **kwargs)
     
+    def delete(self, request, *args, **kwargs):
+        order = self.get_object()
+        user = request.user
+
+        if not is_manager(user):
+            return Response({"detail": "Only managers can delete orders."}, status=status.HTTP_403_FORBIDDEN)
+
+        order.delete()
+        return Response(status=status.HTTP_200_OK)
