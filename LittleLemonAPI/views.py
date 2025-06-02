@@ -1,12 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User, Group
 
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.filters import OrderingFilter
 
-from .models import MenuItem, Cart, Order, OrderItem
+from .models import MenuItem, Cart, Order, OrderItem, Category
 from .serializers import UserSerializer, CurrentUserSerializer, MenuItemSerializer,\
     CartSerializer, OrderSerializer
 from .permissions import IsManager, IsCustomer
@@ -30,6 +30,9 @@ class CurrentUserView(generics.RetrieveAPIView):
 class MenuItemListCreateView(generics.ListCreateAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['price']  # allow ordering by price
+    ordering = ['id']  # default ordering
 
     def get_permissions(self):
         permissions = [IsAuthenticated()]
@@ -38,6 +41,16 @@ class MenuItemListCreateView(generics.ListCreateAPIView):
             permissions.append(IsManager())
 
         return permissions
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category_slug = self.request.query_params.get('category')
+
+        if category_slug:
+            category = get_object_or_404(Category, slug=category_slug)
+            queryset = queryset.filter(category=category)
+
+        return queryset
     
 
 class MenuItemDetailView(generics.RetrieveUpdateDestroyAPIView):
